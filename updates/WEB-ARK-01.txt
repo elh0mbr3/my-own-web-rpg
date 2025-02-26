@@ -1,0 +1,9 @@
+WEB-ARK-01-1
+[26/02/2025 - 21:20]
+
+- Added grid borders to dungeon tiles for improved visual clarity.
+- Fixed bonus door key logic so only one key is allowed and the bonus door opens correctly.
+- Refactored website layout by separating screens into distinct divs (merchant screen on the left, game canvas in the centre, event log on the right, and HUD at the bottom).
+- Corrected the "Return" button functionality on the merchant screen to properly restore the game container and resume gameplay.
+- Updated the merchant interface to display the player's inventory for selling items.
+- Added a vertical scrollbar to the event log container to prevent layout conflicts with the HUD.
