@@ -137,20 +137,35 @@ const inventory = [];
  * Adds an item to the global inventory (aggregating similar items).
  */
 function addToInventory(item) {
-  const existing = inventory.find((i) => i.name === item.name);
-  if (existing) {
-    existing.count++;
-  } else {
-    inventory.push({ ...item, count: 1 });
-  }
-  updateInventoryPanel();
-  // Apply item effects (e.g. increase attack)
-  if (typeof applyItemEffects === "function") {
-    applyItemEffects(item);
-  }
-  // If it is a key, update (or create) the bonus door
   if (item.type === "key") {
-    updateBonusDoor();
+    // Only add a key if the player doesn't already have one
+    const existingKey = inventory.find((i) => i.type === "key");
+    if (existingKey) {
+      // Optionally log that a key is already held
+      if (typeof logEvent === "function") {
+        logEvent("You already have a key; additional keys are not needed.");
+      }
+      return;
+    } else {
+      inventory.push({ ...item, count: 1 });
+      // Update player's key count (ensure only one key)
+      player.keys = 1;
+      updateInventoryPanel();
+      updateBonusDoor();
+      return;
+    }
+  } else {
+    // For other items, aggregate as usual
+    const existing = inventory.find((i) => i.name === item.name);
+    if (existing) {
+      existing.count++;
+    } else {
+      inventory.push({ ...item, count: 1 });
+    }
+    updateInventoryPanel();
+    if (typeof applyItemEffects === "function") {
+      applyItemEffects(item);
+    }
   }
 }
 

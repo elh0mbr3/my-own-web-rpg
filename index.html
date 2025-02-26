@@ -4,34 +4,36 @@
     <meta charset="UTF-8" />
     <title>My Web RPG on JavaScript</title>
     <style>
+      /* Overall layout */
       body {
         margin: 0;
         padding: 0;
         font-family: Arial, sans-serif;
         background-color: #111;
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
+        height: 100vh;
       }
-      /* Game container (canvas) */
+      /* Top row: left = merchant, centre = game canvas, right = event log */
+      #topRow {
+        display: flex;
+        flex: 1;
+      }
+      #merchantContainer {
+        width: 300px;
+        background-color: #222;
+        color: #fff;
+        padding: 10px;
+        display: none; /* Shown only when outside the dungeon */
+      }
       #gameContainer {
+        flex: 1;
         position: relative;
-        width: 1024px;
-        height: 768px;
         border: 2px solid #fff;
         margin: 20px;
+        background-color: #222;
         overflow: hidden;
       }
-      canvas {
-        background: #222;
-        display: block;
-      }
-
-      /* Merchant screen (on the left) */
-      #merchantScreen {
-        display: none; /* appears when the player leaves the dungeon */
-      }
-
-      /* Event log container (on the right) */
       #eventLogContainer {
         width: 300px;
         height: 768px;
@@ -39,23 +41,23 @@
         background-color: #222;
         color: #fff;
         padding: 10px;
-        overflow-y: auto;
         margin: 20px;
+        overflow-y: auto; /* Add scrollbar if content exceeds height */
       }
       #eventLogContainer h2 {
         margin-top: 0;
       }
-      #eventLog {
-        font-size: 14px;
-      }
-
-      /* HUD below the game */
+      /* Bottom row: HUD */
       #hudContainer {
-        width: 1024px;
-        text-align: center;
+        background-color: #333;
         color: #fff;
+        padding: 10px;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
-      .hud-button {
+      #hudContainer .hud-button {
         background-color: rgba(0, 0, 0, 0.8);
         border: 1px solid #fff;
         color: #fff;
@@ -63,6 +65,11 @@
         margin: 5px;
         cursor: pointer;
       }
+      #hpDisplay {
+        font-size: 18px;
+        margin-right: 20px;
+      }
+      /* Panels for Inventory and Stats */
       .panel {
         width: 1024px;
         background-color: rgba(0, 0, 0, 0.8);
@@ -71,313 +78,320 @@
         padding: 10px;
         display: none;
         overflow-y: auto;
-        margin: 0 auto 10px auto; /* centered, small bottom margin */
+        margin: 0 auto 10px auto;
       }
     </style>
   </head>
   <body>
-    <!-- Merchant screen (on the left), appears after leaving the dungeon -->
-    <div id="merchantScreen"></div>
-
-    <!-- Main game (center) -->
-    <div id="gameContainer">
-      <canvas id="gameCanvas" width="1024" height="768"></canvas>
+    <!-- Top Row -->
+    <div id="topRow">
+      <!-- Merchant container (left) -->
+      <div id="merchantContainer"></div>
+      <!-- Game container (centre) -->
+      <div id="gameContainer">
+        <canvas id="gameCanvas" width="1024" height="768"></canvas>
+      </div>
+      <!-- Event log container (right) -->
+      <div id="eventLogContainer">
+        <h2>Event Log</h2>
+        <div id="eventLog"></div>
+      </div>
+    </div>
+    <!-- Bottom Row: HUD -->
+    <div id="hudContainer">
+      <div id="hpDisplay">HP: <span id="playerHP">100</span></div>
+      <button class="hud-button" id="inventoryBtn">Inventory</button>
+      <button class="hud-button" id="statsBtn">Stats</button>
+    </div>
+    <!-- Panels for Inventory and Stats -->
+    <div id="inventoryPanel" class="panel">
+      <h2>Inventory</h2>
+      <p>The inventory is empty.</p>
+    </div>
+    <div id="statsPanel" class="panel">
+      <h2>Stats</h2>
+      <p>HP: <span id="playerHPStats">100</span></p>
+      <p>Attack: <span id="playerAttack">5</span></p>
+      <p>Defense: <span id="playerDefense">5</span></p>
+      <p>Coins: <span id="playerCoins">0</span></p>
+      <p>Keys: <span id="playerKeys">0</span></p>
     </div>
 
-    <!-- Event log (on the right) -->
-    <div id="eventLogContainer">
-      <h2>Event Log</h2>
-      <div id="eventLog"></div>
-    </div>
-  </body>
+    <!-- External files are loaded here -->
+    <script src="eventlog.js"></script>
+    <script src="dungeon_generation.js"></script>
+    <script src="merchant.js"></script>
+    <script src="enemy.js"></script>
 
-  <!-- HUD below the game (but placed here in code so it’s all on one page) -->
-  <div id="hudContainer">
-    <button class="hud-button" id="inventoryBtn">Inventory</button>
-    <button class="hud-button" id="statsBtn">Stats</button>
-  </div>
+    <!-- Main game logic -->
+    <script>
+      // Main variables
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const tileSize = 32;
+      let inDungeon = true; // Flag indicating if the player is in the dungeon
 
-  <div id="inventoryPanel" class="panel">
-    <h2>Inventory</h2>
-    <p>The inventory is empty.</p>
-  </div>
+      // Player object
+      let player = {
+        x: Math.floor(mapWidth / 2) * tileSize,
+        y: Math.floor(mapHeight / 2) * tileSize,
+        width: tileSize,
+        height: tileSize,
+        color: "#ff0000",
+        health: 100,
+        attack: 5,
+        defense: 5,
+        coins: 0,
+        keys: 0,
+      };
 
-  <div id="statsPanel" class="panel">
-    <h2>Stats</h2>
-    <p>HP: <span id="playerHP">100</span></p>
-    <p>Attack: <span id="playerAttack">5</span></p>
-    <p>Defense: <span id="playerDefense">5</span></p>
-    <p>Coins: <span id="playerCoins">0</span></p>
-    <p>Keys: <span id="playerKeys">0</span></p>
-  </div>
-
-  <script src="eventlog.js"></script>
-  <script src="dungeon_generation.js"></script>
-  <script src="merchant.js"></script>
-  <script src="enemy.js"></script>
-  <script>
-    // Main variables
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const tileSize = 32;
-    let inDungeon = true; // flag indicating if the player is in the dungeon
-
-    // Player
-    let player = {
-      x: Math.floor(mapWidth / 2) * tileSize,
-      y: Math.floor(mapHeight / 2) * tileSize,
-      width: tileSize,
-      height: tileSize,
-      color: "#ff0000",
-      health: 100,
-      attack: 5,
-      defense: 5,
-      coins: 0,
-      keys: 0,
-    };
-
-    // Ensure the starting position is not a wall
-    function ensureValidStart() {
-      const tileX = Math.floor(player.x / tileSize);
-      const tileY = Math.floor(player.y / tileSize);
-      if (dungeonMap[tileY][tileX].type === "wall") {
-        // Find any floor tile
-        for (let y = 0; y < mapHeight; y++) {
-          for (let x = 0; x < mapWidth; x++) {
-            if (dungeonMap[y][x].type === "floor") {
-              player.x = x * tileSize;
-              player.y = y * tileSize;
-              return;
+      // Ensure the starting position is not a wall
+      function ensureValidStart() {
+        const tileX = Math.floor(player.x / tileSize);
+        const tileY = Math.floor(player.y / tileSize);
+        if (dungeonMap[tileY][tileX].type === "wall") {
+          // Find any floor tile
+          for (let y = 0; y < mapHeight; y++) {
+            for (let x = 0; x < mapWidth; x++) {
+              if (dungeonMap[y][x].type === "floor") {
+                player.x = x * tileSize;
+                player.y = y * tileSize;
+                return;
+              }
             }
           }
         }
       }
-    }
-    ensureValidStart();
+      ensureValidStart();
 
-    // Update player stats in HUD
-    function updatePlayerStats() {
-      document.getElementById("playerHP").textContent = player.health;
-      document.getElementById("playerAttack").textContent = player.attack;
-      document.getElementById("playerDefense").textContent = player.defense;
-      document.getElementById("playerCoins").textContent = player.coins;
-      document.getElementById("playerKeys").textContent = player.keys;
-    }
+      // Update player stats in the HUD
+      function updatePlayerStats() {
+        document.getElementById("playerHP").textContent = player.health;
+        document.getElementById("playerAttack").textContent = player.attack;
+        document.getElementById("playerDefense").textContent = player.defense;
+        document.getElementById("playerCoins").textContent = player.coins;
+        document.getElementById("playerKeys").textContent = player.keys;
+      }
 
-    // Draw the dungeon
-    function drawDungeon() {
-      for (let y = 0; y < mapHeight; y++) {
-        for (let x = 0; x < mapWidth; x++) {
-          const tile = dungeonMap[y][x];
-          if (tile.type === "wall") {
-            ctx.fillStyle = "#555";
-          } else if (tile.type === "loot") {
-            ctx.fillStyle = "#ff0";
-          } else if (tile.type === "exitDoor") {
-            ctx.fillStyle = "#00f";
-          } else if (tile.type === "bonusDoor") {
-            ctx.fillStyle = "#a020f0";
-          } else {
-            ctx.fillStyle = "#333";
+      // Draw the dungeon with grid borders
+      function drawDungeon() {
+        for (let y = 0; y < mapHeight; y++) {
+          for (let x = 0; x < mapWidth; x++) {
+            const tile = dungeonMap[y][x];
+            if (tile.type === "wall") {
+              ctx.fillStyle = "#555";
+            } else if (tile.type === "loot") {
+              ctx.fillStyle = "#ff0";
+            } else if (tile.type === "exitDoor") {
+              ctx.fillStyle = "#00f";
+            } else if (tile.type === "bonusDoor") {
+              ctx.fillStyle = "#a020f0";
+            } else {
+              ctx.fillStyle = "#333";
+            }
+            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+
+            // Draw grid border for each cell
+            ctx.strokeStyle = "#222";
+            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
           }
-          ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
         }
       }
-    }
 
-    // Draw the player
-    function drawPlayer() {
-      ctx.fillStyle = player.color;
-      ctx.fillRect(player.x, player.y, player.width, player.height);
-    }
-
-    // Draw enemies
-    function drawEnemies() {
-      enemies.forEach((e) => e.draw(ctx));
-    }
-
-    // Update/redraw the scene
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawDungeon();
-      drawEnemies();
-      drawPlayer();
-    }
-
-    // Leaving the dungeon: hide the canvas, show the merchant screen
-    function exitDungeon() {
-      inDungeon = false;
-      document.getElementById("gameContainer").style.display = "none";
-      openMerchantScreen();
-      logEvent("The player has left the dungeon.");
-    }
-
-    // Move the player
-    function movePlayer(dx, dy) {
-      if (!inDungeon) return; // if already left the dungeon
-      const newX = player.x + dx * tileSize;
-      const newY = player.y + dy * tileSize;
-      const tileX = Math.floor(newX / tileSize);
-      const tileY = Math.floor(newY / tileSize);
-
-      // Check boundaries
-      if (tileX < 0 || tileY < 0 || tileX >= mapWidth || tileY >= mapHeight) {
-        return;
+      // Draw the player
+      function drawPlayer() {
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, player.width, player.height);
       }
-      // Check if it's a wall
-      if (dungeonMap[tileY][tileX].type === "wall") {
-        return;
-      }
-      // Apply movement
-      player.x = newX;
-      player.y = newY;
 
-      // Check exit door
-      if (dungeonMap[tileY][tileX].type === "exitDoor") {
-        logEvent("Player found the exit door.");
-        exitDungeon();
-        return;
+      // Draw enemies
+      function drawEnemies() {
+        enemies.forEach((e) => e.draw(ctx));
       }
-      // Check bonus door
-      if (dungeonMap[tileY][tileX].type === "bonusDoor") {
-        if (player.keys > 0) {
-          player.keys--;
-          updatePlayerStats();
-          logEvent("The player has entered the bonus level!");
-          generateBonusLevel();
+
+      // Redraw the scene
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawDungeon();
+        drawEnemies();
+        drawPlayer();
+      }
+
+      // Leave the dungeon: hide the game container and show the merchant screen
+      function exitDungeon() {
+        inDungeon = false;
+        document.getElementById("gameContainer").style.display = "none";
+        openMerchantScreen();
+        logEvent("The player has left the dungeon.");
+      }
+
+      // Move the player
+      function movePlayer(dx, dy) {
+        if (!inDungeon) return; // Do nothing if not in the dungeon
+        const newX = player.x + dx * tileSize;
+        const newY = player.y + dy * tileSize;
+        const tileX = Math.floor(newX / tileSize);
+        const tileY = Math.floor(newY / tileSize);
+
+        // Check boundaries
+        if (tileX < 0 || tileY < 0 || tileX >= mapWidth || tileY >= mapHeight) {
           return;
-        } else {
-          logEvent("A key is required for the bonus door.");
         }
-      }
-      // Attempt to pick up loot
-      pickupLoot(tileX, tileY);
-
-      // Redraw
-      draw();
-    }
-
-    // Generate a bonus level (new map)
-    function generateBonusLevel() {
-      const newMap = generateDungeon();
-      for (let y = 0; y < mapHeight; y++) {
-        for (let x = 0; x < mapWidth; x++) {
-          dungeonMap[y][x] = newMap[y][x];
+        // Check if the tile is a wall
+        if (dungeonMap[tileY][tileX].type === "wall") {
+          return;
         }
-      }
-      // Move the player to the center of the new map
-      player.x = Math.floor(mapWidth / 2) * tileSize;
-      player.y = Math.floor(mapHeight / 2) * tileSize;
-      logEvent("Bonus level loaded.");
-      // Respawn enemies
-      enemies.length = 0;
-      spawnEnemies();
-      draw();
-    }
+        // Apply movement
+        player.x = newX;
+        player.y = newY;
 
-    // Keyboard listener
-    window.addEventListener("keydown", (e) => {
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-        e.preventDefault();
-      }
-      switch (e.key) {
-        case "ArrowUp":
-        case "w":
-          movePlayer(0, -1);
-          break;
-        case "ArrowDown":
-        case "s":
-          movePlayer(0, 1);
-          break;
-        case "ArrowLeft":
-        case "a":
-          movePlayer(-1, 0);
-          break;
-        case "ArrowRight":
-        case "d":
-          movePlayer(1, 0);
-          break;
-      }
-    });
+        // Check exit door
+        if (dungeonMap[tileY][tileX].type === "exitDoor") {
+          logEvent("Player found the exit door.");
+          exitDungeon();
+          return;
+        }
+        // Check bonus door
+        if (dungeonMap[tileY][tileX].type === "bonusDoor") {
+          if (player.keys > 0) {
+            player.keys--;
+            updatePlayerStats();
+            logEvent("The player has entered the bonus level!");
+            generateBonusLevel();
+            return;
+          } else {
+            logEvent("A key is required for the bonus door.");
+          }
+        }
+        // Attempt to pick up loot
+        pickupLoot(tileX, tileY);
 
-    // Launch
-    spawnEnemies();
-    draw();
-    setInterval(() => {
-      if (inDungeon) {
-        updateEnemies();
+        // Redraw the scene
         draw();
       }
-    }, 300);
 
-    // HUD buttons
-    const inventoryBtn = document.getElementById("inventoryBtn");
-    const statsBtn = document.getElementById("statsBtn");
-    const inventoryPanel = document.getElementById("inventoryPanel");
-    const statsPanel = document.getElementById("statsPanel");
-
-    inventoryBtn.addEventListener("click", () => {
-      if (
-        inventoryPanel.style.display === "none" ||
-        inventoryPanel.style.display === ""
-      ) {
-        inventoryPanel.style.display = "block";
-        statsPanel.style.display = "none";
-        updateInventoryPanel();
-      } else {
-        inventoryPanel.style.display = "none";
-      }
-    });
-
-    statsBtn.addEventListener("click", () => {
-      if (
-        statsPanel.style.display === "none" ||
-        statsPanel.style.display === ""
-      ) {
-        statsPanel.style.display = "block";
-        inventoryPanel.style.display = "none";
-      } else {
-        statsPanel.style.display = "none";
-      }
-    });
-
-    /** Apply item effects (example) */
-    function applyItemEffects(item) {
-      if (item.type === "sword") {
-        player.attack += item.attackBonus || 1;
-      } else if (item.type === "armor") {
-        player.defense += item.defenseBonus || 1;
-      } else if (item.type === "potion") {
-        // If you want, you can automatically heal or require a separate "Use" button
-        player.health += 20;
-        if (player.health > 100) player.health = 100;
-      } else if (item.type === "coin") {
-        // If desired, add +1 to player.coins
-        // For example: player.coins += 1;
-      }
-      updatePlayerStats();
-    }
-
-    /** Update the inventory panel (item list) */
-    function updateInventoryPanel() {
-      if (!inventoryPanel) return;
-      if (inventory.length === 0) {
-        inventoryPanel.innerHTML =
-          "<h2>Inventory</h2><p>The inventory is empty.</p>";
-      } else {
-        let html = "<h2>Inventory</h2><ul>";
-        inventory.forEach((item) => {
-          html += `<li style="cursor:pointer;" onclick="sellItem('${
-            item.name
-          }')">
-          ${item.name}${item.count > 1 ? " (" + item.count + ")" : ""} – ${
-            item.description
+      // Generate a bonus level (new dungeon map)
+      function generateBonusLevel() {
+        const newMap = generateDungeon();
+        for (let y = 0; y < mapHeight; y++) {
+          for (let x = 0; x < mapWidth; x++) {
+            dungeonMap[y][x] = newMap[y][x];
           }
-        </li>`;
-        });
-        html += "</ul>";
-        inventoryPanel.innerHTML = html;
+        }
+        // Move the player to the centre of the new map
+        player.x = Math.floor(mapWidth / 2) * tileSize;
+        player.y = Math.floor(mapHeight / 2) * tileSize;
+        logEvent("Bonus level loaded.");
+        // Respawn enemies
+        enemies.length = 0;
+        spawnEnemies();
+        draw();
       }
-    }
-  </script>
+
+      // Keyboard listener
+      window.addEventListener("keydown", (e) => {
+        if (
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+        ) {
+          e.preventDefault();
+        }
+        switch (e.key) {
+          case "ArrowUp":
+          case "w":
+            movePlayer(0, -1);
+            break;
+          case "ArrowDown":
+          case "s":
+            movePlayer(0, 1);
+            break;
+          case "ArrowLeft":
+          case "a":
+            movePlayer(-1, 0);
+            break;
+          case "ArrowRight":
+          case "d":
+            movePlayer(1, 0);
+            break;
+        }
+      });
+
+      // Launch the game
+      spawnEnemies();
+      draw();
+      setInterval(() => {
+        if (inDungeon) {
+          updateEnemies();
+          draw();
+        }
+      }, 300);
+
+      // HUD buttons
+      const inventoryBtn = document.getElementById("inventoryBtn");
+      const statsBtn = document.getElementById("statsBtn");
+      const inventoryPanel = document.getElementById("inventoryPanel");
+      const statsPanel = document.getElementById("statsPanel");
+
+      inventoryBtn.addEventListener("click", () => {
+        if (
+          inventoryPanel.style.display === "none" ||
+          inventoryPanel.style.display === ""
+        ) {
+          inventoryPanel.style.display = "block";
+          statsPanel.style.display = "none";
+          updateInventoryPanel();
+        } else {
+          inventoryPanel.style.display = "none";
+        }
+      });
+
+      statsBtn.addEventListener("click", () => {
+        if (
+          statsPanel.style.display === "none" ||
+          statsPanel.style.display === ""
+        ) {
+          statsPanel.style.display = "block";
+          inventoryPanel.style.display = "none";
+        } else {
+          statsPanel.style.display = "none";
+        }
+      });
+
+      /** Apply item effects (example) */
+      function applyItemEffects(item) {
+        if (item.type === "sword") {
+          player.attack += item.attackBonus || 1;
+        } else if (item.type === "armor") {
+          player.defense += item.defenseBonus || 1;
+        } else if (item.type === "potion") {
+          player.health += 20;
+          if (player.health > 100) player.health = 100;
+        } else if (item.type === "coin") {
+          // Optional coin logic here
+        }
+        updatePlayerStats();
+      }
+
+      /** Update the inventory panel (item list) */
+      function updateInventoryPanel() {
+        if (!inventoryPanel) return;
+        if (inventory.length === 0) {
+          inventoryPanel.innerHTML =
+            "<h2>Inventory</h2><p>The inventory is empty.</p>";
+        } else {
+          let html = "<h2>Inventory</h2><ul>";
+          inventory.forEach((item) => {
+            html += `<li style="cursor:pointer;" onclick="sellItem('${
+              item.name
+            }')">
+          ${item.name}${item.count > 1 ? " (" + item.count + ")" : ""} – ${
+              item.description
+            }
+        </li>`;
+          });
+          html += "</ul>";
+          inventoryPanel.innerHTML = html;
+        }
+      }
+    </script>
+  </body>
 </html>
