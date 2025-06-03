@@ -106,7 +106,10 @@ function spawnEnemies() {
     while (!placed) {
       const x = Math.floor(Math.random() * mapWidth);
       const y = Math.floor(Math.random() * mapHeight);
-      if (dungeonMap[y][x].type === "floor") {
+      if (
+        dungeonMap[y][x].type === "floor" &&
+        !(x * tileSize === player.x && y * tileSize === player.y)
+      ) {
         enemies.push(new Enemy(x * tileSize, y * tileSize));
         placed = true;
         if (typeof logEvent === "function") {
