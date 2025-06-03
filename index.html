@@ -352,8 +352,9 @@
         player.health += 20;
         if (player.health > 100) player.health = 100;
       } else if (item.type === "coin") {
-        // If desired, add +1 to player.coins
-        // For example: player.coins += 1;
+        player.coins += 1;
+      } else if (item.type === "key") {
+        player.keys += 1;
       }
       updatePlayerStats();
     }

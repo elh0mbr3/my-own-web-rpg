@@ -57,6 +57,13 @@ function closeMerchantScreen() {
   if (merchantScreen) {
     merchantScreen.style.display = "none";
   }
+  const gameContainer = document.getElementById("gameContainer");
+  if (gameContainer) {
+    gameContainer.style.display = "block";
+  }
+  if (typeof inDungeon !== "undefined") {
+    inDungeon = true;
+  }
 }
 
 /** Returns the HTML code for the merchant interface */
@@ -95,6 +102,11 @@ function sellItem(itemName) {
     // Sell price = half of its original price (or 2 by default)
     const sellPrice = Math.floor((it.price || 4) / 2);
     player.coins += sellPrice;
+    if (it.type === "sword") {
+      player.attack -= it.attackBonus || 1;
+    } else if (it.type === "armor") {
+      player.defense -= it.defenseBonus || 1;
+    }
     if (it.count > 1) {
       it.count--;
     } else {
